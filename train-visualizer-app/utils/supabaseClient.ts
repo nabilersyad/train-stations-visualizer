@@ -1,10 +1,10 @@
 // In a separate file (e.g., supabaseClient.ts)
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "YOUR_SUPABASE_URL"; // Replace with your Supabase URL
-const supabaseKey = "YOUR_SUPABASE_PUBLIC_KEY"; // Replace with your Supabase public key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL; // Replace with your Supabase URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; // Replace with your Supabase public key
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function getTrainStations(): Promise<TrainStation[]> {
   const { data, error } = await supabase
