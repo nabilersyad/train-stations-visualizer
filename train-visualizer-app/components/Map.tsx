@@ -48,7 +48,7 @@ const Map: FC<MapProps> = ({ stations, isochrones }) => {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       {stations.map((station) => (
-        <Marker key={station.id} position={[station.latitude, station.longitude]}>
+        <Marker key={station.station_id} position={[station.latitude, station.longitude]}>
           <Popup>{station.name}</Popup>
         </Marker>
       ))}

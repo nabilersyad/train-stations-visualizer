@@ -1,8 +1,8 @@
 // pages/index.tsx
 import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../../utils/supabaseClient';
 
-import Map from '../components/Map';
+import Map from '../../components/Map';
 
 
 interface Station {
@@ -46,6 +46,7 @@ const Home = () => {
     <div>
       <Map stations={stations} isochrones={isochrones} />
     </div>
+   
   );
 };
 
