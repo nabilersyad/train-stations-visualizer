@@ -1,15 +1,16 @@
 #from numpy.lib.arraysetops import union1d_dispatcher
 import pandas as pd
 import streamlit as st
-#from PIL import Image
-#import plotly.express as px
-#import base64
-#import numpy as np
-#import isochrones
+
 from streamlit_folium import folium_static
-#from branca.element import Template, MacroElement
 import folium
-#from settings import template
+from shapely.geometry import shape
+
+from supabase import create_client, Client
+
+import geopandas as gpd
+import os
+
 
 # Set page title and favicon.
 TRAIN__ICON_URl= 'resources/img/train_icon.png'
@@ -26,11 +27,10 @@ st.set_page_config(
 ##Loads image for 
 #image = Image.open('../resources/img/DSC09499.JPG')
 
-import os
-from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+key: str = os.environ.get("SUPABASE_SERVICE_KEY")
+print(url)
 supabase: Client = create_client(url, key)
 
 ## Station Location
@@ -70,7 +70,7 @@ st.download_button(
     mime='text/csv'
     )
 
-##Entrance Data
+#####Entrance Data#####
 response = supabase.table('entrances').select("*").execute()
 data,_ = response
 selected_data = pd.DataFrame(data[1])
@@ -93,6 +93,70 @@ for _, station in unique_stations.iterrows():
 
 # Display the map
 folium_static(mapped, width=st.sidebar.slider("Width Map 2", min_value=600, max_value=2000, value=960), height=600)
+
+#Display dataframe
+st.dataframe(selected_data)
+
+#download data
+csv = selected_data.to_csv().encode('utf-8')
+st.download_button(
+    label="Download data as CSV",
+    data=csv,
+    file_name=f'Klang_Valley_Entrances_data.csv',
+    mime='text/csv'
+    )
+
+
+
+######Station Isochrones#####
+response = supabase.table('station_isochrones').select("*").execute()
+data,_ = response
+selected_data = pd.DataFrame(data[1])
+selected_data= selected_data[selected_data['value'==300]]
+
+
+st.header(f'Klang Valley Train Stations Isochrones')
+st.write("""
+***
+""")
+
+#query to supabase using the previous supabase client that was declared
+response_station_isochrones = supabase.table('station_isochrones').select("*").execute()
+
+data,_ = response_station_isochrones
+station_isochrones_df = pd.DataFrame(data[1])
+
+# Convert the geometry column from dictionaries to shapely Polygons
+station_isochrones_df['geometry'] = station_isochrones_df['geometry'].apply(lambda geom: shape(geom))
+
+# Convert the DataFrame to a GeoDataFrame
+entrances_isochrones_gdf = gpd.GeoDataFrame(station_isochrones_df, geometry='geometry', crs='EPSG:4326')
+
+
+# Define the center of the map based on the GeoDataFrame's centroid
+map_center = entrances_isochrones_gdf.geometry.centroid.iloc[0].coords[0][::-1]
+
+# Create a folium map centered on the geometries
+m = folium.Map(location=map_center, zoom_start=12)
+
+# Add GeoDataFrame geometries to the map
+folium.GeoJson(
+    entrances_isochrones_gdf,
+    name="Entrances Isochrones",
+    style_function=lambda feature: {
+        'fillColor': 'cyan',
+        'color': 'black',
+        'weight': 1,
+        'fillOpacity': 0.6,
+    }
+).add_to(m)
+
+# Add a layer control panel
+folium.LayerControl().add_to(m)
+
+
+# Display the map
+folium_static(m, width=st.sidebar.slider("Width Map 2", min_value=600, max_value=2000, value=960), height=600)
 
 #Display dataframe
 st.dataframe(selected_data)
