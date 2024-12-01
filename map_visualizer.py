@@ -14,7 +14,7 @@ icon_url= 'resources/img/webapp_logo.png'
 # Page layout
 ## Adds page icon and Page expands to full width
 st.set_page_config(
-    page_title="Train Station Isochrones", page_icon=icon_url,
+    page_title="Klang Valley Transit Station Isochrones", page_icon=icon_url,
     layout="wide",
 )
 
@@ -28,9 +28,10 @@ response = supabase.table('stations').select("*").execute()
 data,_ = response
 data_all = pd.DataFrame(data[1])
 
+## Load only Klang Valley values
 data_klang_valley = data_all[data_all['region']=="Klang Valley"]
 
-st.header(f'Klang Valley Train Stations Isochrone Data')
+st.header(f'Klang Valley Transit Station Isochrones')
 st.write("""
 ***
 """)
@@ -41,31 +42,58 @@ unique_stations = data_klang_valley.drop_duplicates('station_code')
 
 ###Page Layout
 
-left_column, right_column = st.columns([1, 4])
+left_column, right_column = st.columns([2, 4])
 # You can use a column just like st.sidebar:
 with left_column:
-    width = st.slider("Width", min_value=600, max_value=2000, value=960)
+    #width = st.slider("Width", min_value=600, max_value=2000, value=960)
     isochrone_size = st.radio(
         "Isochrone Size",
         options= [300,600,900],
         captions= ["5 Minutes", "10 Minutes", "15 Minutes"],
         index=0,
-        horizontal=False
-) 
+        horizontal=True
+    )
+    # Get unique lines from the dataset
+    unique_lines = ['All Lines'] + sorted(data_klang_valley['route_name'].unique().tolist())
+    
+    # Create the dropdown
+    selected_line = st.selectbox(
+        'Select Train Line',
+        options=unique_lines
+    )
+ 
     
 # Or even better, call Streamlit functions inside a "with" block:
 with right_column:
-    # Create a map centered around the average latitude and longitude of the stations
-    mapped = folium.Map(location=[unique_stations['latitude'].mean(), unique_stations['longitude'].mean()], 
-                        zoom_start=12)
+
+    # Filter the stations based on selection
+    if selected_line == 'All Lines':
+        filtered_stations = unique_stations
+    else:
+        filtered_stations = unique_stations[unique_stations['route_name'] == selected_line]
 
 
+    # Create a map centered around the filtered stations
+    mapped = folium.Map(
+        location=[filtered_stations['latitude'].mean(), filtered_stations['longitude'].mean()],
+        zoom_start=13
+    )
 
     ## Load isochrone data
     response_isochrones = supabase.table('station_isochrones').select("*").execute()
     data,_ = response_isochrones
     data_klang_valley_isochrones = pd.DataFrame(data[1])
     data_klang_valley_isochrones = data_klang_valley_isochrones[data_klang_valley_isochrones['value'] == isochrone_size]
+
+    # Filter isochrones based on selected line
+    if selected_line != 'All Lines':
+        station_codes = filtered_stations['station_id'].tolist()
+        station_codes = [str(code) for code in station_codes]
+        data_klang_valley_isochrones = data_klang_valley_isochrones[
+            data_klang_valley_isochrones['station_id'].isin(station_codes)
+        ]
+        
+
 
     # Convert the geometry column from dictionaries to shapely Polygons
     data_klang_valley_isochrones['geometry'] = data_klang_valley_isochrones['geometry'].apply(lambda geom: shape(geom))
@@ -74,9 +102,13 @@ with right_column:
     data_klang_valley_isochrones = gpd.GeoDataFrame(data_klang_valley_isochrones, geometry='geometry', crs='EPSG:4326')
         
         # Add a marker for each station
-    for _, station in unique_stations.iterrows():
-        folium.Marker(location=[station['latitude'], station['longitude']], 
-                    popup=f"{station['name']} ({station['station_id']})").add_to(mapped)
+    # Add markers for filtered stations
+    for _, station in filtered_stations.iterrows():
+        folium.Marker(
+            location=[station['latitude'], station['longitude']], 
+            popup=f"{station['name']} ({station['station_id']})"
+        ).add_to(mapped)
+
     # Add GeoDataFrame geometries to the map
     folium.GeoJson(
         data_klang_valley_isochrones,
@@ -91,10 +123,10 @@ with right_column:
     # Add a layer control panel
     folium.LayerControl().add_to(mapped)
 
-    folium_static(mapped, width=width, height=600)
+    folium_static(mapped, height=600)
 
 #Display dataframe
-st.dataframe(data_klang_valley)
+st.dataframe(filtered_stations)
 
 #download data
 csv = data_klang_valley.to_csv().encode('utf-8')
