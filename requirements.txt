@@ -10,3 +10,4 @@ jupyter
 plotly
 numpy
 protobuf
+geopandas
