@@ -4,7 +4,7 @@ import streamlit as st
 import geopandas as gpd
 import os
 import folium
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
 from shapely.geometry import shape
 from supabase import create_client, Client
 
@@ -145,7 +145,8 @@ with right_column:
     # Add a layer control panel
     folium.LayerControl().add_to(mapped)
 
-    folium_static(mapped, height=600)
+    st_folium(mapped, width=750, height=600)
+
 
 # Convert station_id to string in both dataframes before merging
 filtered_stations['station_id'] = filtered_stations['station_id'].astype(str)
