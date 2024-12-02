@@ -1,7 +1,6 @@
-folium==0.14.0
+folium==0.18.0
 pandas==2.0.1
 shapely
-fiona
 requests
 openrouteservice==2.2.3
 ortools
