@@ -37,7 +37,7 @@ st.write("""
 """)
 isochrone_size = 300
 # Create a new DataFrame where each latitude and longitude pair is unique
-unique_stations = data_klang_valley.drop_duplicates('station_code')
+unique_stations = data_klang_valley
 
 
 ###Page Layout
@@ -61,22 +61,45 @@ with left_column:
         'Select Train Line',
         options=unique_lines
     )
- 
-    
-# Or even better, call Streamlit functions inside a "with" block:
-with right_column:
-
-    # Filter the stations based on selection
     if selected_line == 'All Lines':
         filtered_stations = unique_stations
     else:
         filtered_stations = unique_stations[unique_stations['route_name'] == selected_line]
+    
+     # Create station dropdown based on selected line
+    if selected_line == 'All Lines':
+        station_options = ['All Stations'] + sorted(data_klang_valley['name'].unique().tolist())
+    else:
+        station_options = ['All Stations'] + sorted(data_klang_valley[data_klang_valley['route_name'] == selected_line]['name'].unique().tolist())
+    
+    selected_station = st.selectbox(
+        'Select Station',
+        options=station_options
+    )
 
+    if selected_station == 'All Stations':
+        filtered_stations = filtered_stations
+    else:
+        filtered_stations = filtered_stations[filtered_stations['name'] == selected_station]
+
+
+# Or even better, call Streamlit functions inside a "with" block:
+with right_column:
 
     # Create a map centered around the filtered stations
-    mapped = folium.Map(
-        location=[filtered_stations['latitude'].mean(), filtered_stations['longitude'].mean()],
+    # Set location based on number of filtered stations
+    if len(filtered_stations) == 1:
+        location = [filtered_stations['latitude'].iloc[0], filtered_stations['longitude'].iloc[0]]
+        zoom_start=15
+
+    else:
+        location = [filtered_stations['latitude'].mean(), filtered_stations['longitude'].mean()]
         zoom_start=13
+
+    # Create map with determined location
+    mapped = folium.Map(
+        location=location,
+        zoom_start=zoom_start
     )
 
     ## Load isochrone data
@@ -86,12 +109,11 @@ with right_column:
     data_klang_valley_isochrones = data_klang_valley_isochrones[data_klang_valley_isochrones['value'] == isochrone_size]
 
     # Filter isochrones based on selected line
-    if selected_line != 'All Lines':
-        station_codes = filtered_stations['station_id'].tolist()
-        station_codes = [str(code) for code in station_codes]
-        data_klang_valley_isochrones = data_klang_valley_isochrones[
-            data_klang_valley_isochrones['station_id'].isin(station_codes)
-        ]
+    station_codes = filtered_stations['station_id'].tolist()
+    station_codes = [str(code) for code in station_codes]
+    data_klang_valley_isochrones = data_klang_valley_isochrones[
+                        data_klang_valley_isochrones['station_id'].isin(station_codes)
+                        ]
         
 
 
@@ -125,28 +147,52 @@ with right_column:
 
     folium_static(mapped, height=600)
 
-#Display dataframe
-st.dataframe(filtered_stations)
+# Convert station_id to string in both dataframes before merging
+filtered_stations['station_id'] = filtered_stations['station_id'].astype(str)
+data_klang_valley_isochrones['station_id'] = data_klang_valley_isochrones['station_id'].astype(str)
 
-#download data
-csv = data_klang_valley.to_csv().encode('utf-8')
+# Now perform the merge
+joined_data = filtered_stations.merge(
+    data_klang_valley_isochrones,
+    on='station_id',
+    how='left'
+)
+
+
+# Display single joined dataframe
+st.dataframe(joined_data)
+
+# Single download button for joined data
+csv = joined_data.to_csv().encode('utf-8')
 st.download_button(
-    label="Download data as CSV",
+    label="Download Combined Data as CSV",
     data=csv,
-    file_name=f'Klang_Valley_data.csv',
+    file_name='Klang_Valley_Combined_Data.csv',
     mime='text/csv'
-    )
+)
+
+# #Display dataframe
+# st.dataframe(filtered_stations)
+
+# #download data
+# csv = data_klang_valley.to_csv().encode('utf-8')
+# st.download_button(
+#     label="Download data as CSV",
+#     data=csv,
+#     file_name=f'Klang_Valley_data.csv',
+#     mime='text/csv'
+#     )
 
 
-#Display dataframe
-st.dataframe(data_klang_valley_isochrones)
+# #Display dataframe
+# st.dataframe(data_klang_valley_isochrones)
 
-#download data
-csv = data_klang_valley_isochrones.to_csv().encode('utf-8')
-st.download_button(
-    label="Download data as CSV",
-    data=csv,
-    file_name=f'Klang_Valley_Stations_isochrones_data.csv',
-    mime='text/csv'
-    )
+# #download data
+# csv = data_klang_valley_isochrones.to_csv().encode('utf-8')
+# st.download_button(
+#     label="Download data as CSV",
+#     data=csv,
+#     file_name=f'Klang_Valley_Stations_isochrones_data.csv',
+#     mime='text/csv'
+#     )
 
